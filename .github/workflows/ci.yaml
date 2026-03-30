@@ -1,0 +1,96 @@
+name: ci pipeline
+
+on:
+  push:
+    branches:
+      - '**'              # Jalankan saat push ke branch apa pun
+  pull_request:
+    branches:
+      - main              # Jalankan saat PR ke main
+  workflow_dispatch:      # Bisa dijalankan manual dari UI GitHub
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ─────────────────────────────────────
+  # Job 1: Run Tests
+  # ─────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python with uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        enable-cache: true
+        cache-dependency-glob: 'uv.lock'
+
+    - name: Install dependencies
+      run: uv sync --dev
+
+    # ⚠️ PENTING: Spesifikkan file tester.py agar pytest menemukannya
+    - name: Run pytest
+      run: uv run pytest tester.py -v --tb=short
+
+    # Optional: Upload test results
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ runner.os }}
+        path: |
+          .pytest_cache/
+          htmlcov/
+        retention-days: 7
+
+  # ─────────────────────────────────────
+  # Job 2: Linting & Formatting (Ruff)
+  # ─────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python with uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        enable-cache: true
+
+    - name: Install dependencies
+      run: uv sync --dev
+
+    - name: Run Ruff lint
+      run: uv run ruff check .
+
+    - name: Run Ruff format check
+      run: uv run ruff format --check .
+
+  # ─────────────────────────────────────
+  # Job 3: Build & Verify Package
+  # ─────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    needs: [test, lint]       # Hanya jalan jika test & lint sukses
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python with uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Build package
+      run: uv build
+
+    - name: Verify package
+      run: uv run twine check dist/*
