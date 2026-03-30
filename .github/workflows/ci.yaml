@@ -3,7 +3,7 @@ name: ci pipeline
 on:
   push:
     branches:
-      - '**'              # Jalankan saat push ke branch apa pun
+      - ["*"]
   pull_request:
     branches:
       - main
