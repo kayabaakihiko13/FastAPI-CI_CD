@@ -1,5 +1,5 @@
-from typing import List
 from uuid import uuid4
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -45,7 +45,7 @@ def read_root():
 
 
 @app.get("/items")
-def read_items() -> List[dict]:
+def read_items() -> list[dict]:
     # Mengembalikan semua item tanpa field 'id'
     return [{k: v for k, v in item.items() if k != "id"} for item in ITEMS]
 
